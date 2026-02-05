@@ -3,6 +3,7 @@
 
 #include <QSettings>
 #include <QProcess>
+#include <QFile>
 
 class ConfigManagerBase : public QObject {
     Q_OBJECT
@@ -44,8 +45,11 @@ public:
         QFile file(settings.fileName());
         if (!file.exists()) { // ensure exists
             qDebug() << "#Creating config file" << settings.fileName();
-            file.open(QIODevice::WriteOnly);
-            file.close();
+            if(file.open(QIODevice::WriteOnly)){
+                qWarning() << "#Failed to create config file" << settings.fileName();
+            }else{
+                file.close();
+            }
         }
 
         qDebug() << "#Editing config file" << settings.fileName();

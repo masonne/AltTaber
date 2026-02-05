@@ -5,12 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-set(CMAKE_PREFIX_PATH "D:/Qt/6.8.1/msvc2022_64/lib/cmake")
+
 list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目录下，需要添加搜索路径
 
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 5)
+set(VERSION_MINOR 6)
 set(VERSION_PATCH 0)
 
 set(COMPANY_NAME "MrBeanCpp")
@@ -68,9 +68,9 @@ add_executable(Win_Switcher src/main.cpp
         header/utils/SystemTray.h
         header/utils/ConfigManager.h
         header/utils/ConfigManagerBase.h
-        src/UpdateDialog.cpp
-        header/UpdateDialog.h
-        ui/UpdateDialog.ui
+        # src/UpdateDialog.cpp
+        # header/UpdateDialog.h
+        # ui/UpdateDialog.ui
         src/utils/ScheduledTask.cpp
         header/utils/ScheduledTask.h)
 target_link_libraries(Win_Switcher
@@ -83,6 +83,7 @@ target_link_libraries(Win_Switcher
 
 target_link_libraries(${PROJECT_NAME}
         Dwmapi
+        WindowsApp
 )
 
 # 启用`gui_private`模块

@@ -8,7 +8,7 @@
 #include <QActionGroup>
 #include "Startup.h"
 #include "ConfigManager.h"
-#include "UpdateDialog.h"
+// #include "UpdateDialog.h"
 
 #define sysTray SystemTray::instance()
 
@@ -39,19 +39,19 @@ private:
             "}"
             "QMenu:selected{ background-color:rgb(60,60,60); }");
 
-        auto* act_update = new QAction("Check for Updates", menu);
+        // auto* act_update = new QAction("Check for Updates", menu);
         auto* act_settings = new QAction("Settings", menu);
         auto* act_startup = new QAction("Start with Windows", menu);
         auto* menu_monitor = new QMenu("Display Monitor", menu);
         auto* act_quit = new QAction("Quit >", menu);
 
-        connect(act_update, &QAction::triggered, this, [] {
-            // !对于UI窗体，不要用static变量(`static UpdateDialog dlg;`)，要么局部变量，要么指针
-            // ! static局部变量会在程序结束时析构 ! 析构时可能访问qApp资源，而qApp由于`qApp->quit()`已经被清理
-            // !导致报错（"No style available without QApplication!"）
-            static auto* dlg = new UpdateDialog;
-            dlg->show();
-        });
+        // connect(act_update, &QAction::triggered, this, [] {
+        //     // !对于UI窗体，不要用static变量(`static UpdateDialog dlg;`)，要么局部变量，要么指针
+        //     // ! static局部变量会在程序结束时析构 ! 析构时可能访问qApp资源，而qApp由于`qApp->quit()`已经被清理
+        //     // !导致报错（"No style available without QApplication!"）
+        //     static auto* dlg = new UpdateDialog;
+        //     dlg->show();
+        // });
 
         connect(act_settings, &QAction::triggered, this, [] {
             cfg.editConfigFile();
@@ -109,7 +109,7 @@ private:
 
         connect(act_quit, &QAction::triggered, qApp, &QApplication::quit);
 
-        menu->addAction(act_update);
+        // menu->addAction(act_update);
         menu->addAction(act_settings);
         menu->addAction(act_startup);
         menu->addMenu(menu_monitor);
