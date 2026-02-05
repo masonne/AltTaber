@@ -18,6 +18,9 @@
 
 Widget::Widget(QWidget* parent) : QWidget(parent), ui(new Ui::Widget) {
     ui->setupUi(this);
+    // Hide Label
+    ui->label->hide();
+
     lw = ui->listWidget;
     setWindowFlag(Qt::WindowStaysOnTopHint);
     setWindowFlag(Qt::FramelessWindowHint);
@@ -54,9 +57,10 @@ Widget::Widget(QWidget* parent) : QWidget(parent), ui(new Ui::Widget) {
     lw->setItemDelegate(new IconOnlyDelegate(lw));
     lw->installEventFilter(this);
 
-    connect(lw, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* cur, QListWidgetItem*) {
-        if (cur) showLabelForItem(cur);
-    });
+    // Hide Label, No need to send.
+    // connect(lw, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* cur, QListWidgetItem*) {
+    //     if (cur) showLabelForItem(cur);
+    // });
 
     connect(qApp, &QApplication::focusWindowChanged, this, [this](QWindow* focusWindow) {
         if (focusWindow == nullptr) {
@@ -136,26 +140,30 @@ bool Widget::forceShow() {
 
 /// show App description under the icon
 void Widget::showLabelForItem(QListWidgetItem* item, QString text) {
-    if (!item) return;
+    // 隐藏标签，不显示应用名称
+    ui->label->hide();
+    return;
+    
+    // if (!item) return;
 
-    if (text.isNull()) {
-        auto path = item->data(Qt::UserRole).value<WindowGroup>().exePath;
-        text = Util::getFileDescription(path);
-    }
-    ui->label->setText(text);
-    ui->label->adjustSize();
+    // if (text.isNull()) {
+    //     auto path = item->data(Qt::UserRole).value<WindowGroup>().exePath;
+    //     text = Util::getFileDescription(path);
+    // }
+    // ui->label->setText(text);
+    // ui->label->adjustSize();
 
-    auto itemRect = lw->visualItemRect(item);
-    auto center = itemRect.center() + QPoint(0, itemRect.height() / 2 + ListWidgetMargin.bottom() / 2);
-    center = lw->mapTo(this, center);
-    auto labelRect = ui->label->rect();
-    labelRect.moveCenter(center);
+    // auto itemRect = lw->visualItemRect(item);
+    // auto center = itemRect.center() + QPoint(0, itemRect.height() / 2 + ListWidgetMargin.bottom() / 2);
+    // center = lw->mapTo(this, center);
+    // auto labelRect = ui->label->rect();
+    // labelRect.moveCenter(center);
 
-    auto bound = this->rect().marginsRemoved({5, 0, 5, 0});
-    labelRect.moveRight(qMin(labelRect.right(), bound.right()));
-    labelRect.moveLeft(qMax(labelRect.left(), bound.left())); // left align
+    // auto bound = this->rect().marginsRemoved({5, 0, 5, 0});
+    // labelRect.moveRight(qMin(labelRect.right(), bound.right()));
+    // labelRect.moveLeft(qMax(labelRect.left(), bound.left())); // left align
 
-    ui->label->move(labelRect.topLeft());
+    // ui->label->move(labelRect.topLeft());
 }
 
 void Widget::setupLabelFont() {
@@ -235,6 +243,7 @@ QList<WindowGroup> Widget::prepareWindowGroupList() {
     const auto list = Util::listValidWindows();
     for (auto hwnd: list) {
         if (hwnd == this->hWnd()) continue; // skip self
+        if (IsIconic(hwnd)) continue; // skip minimized windows for Alt+Tab
         auto path = Util::getWindowProcessPath(hwnd);
         if (path.isEmpty()) continue; // TODO 可能需要管理员权限
         auto& winGroup = winGroupMap[path];
@@ -438,7 +447,8 @@ bool Widget::eventFilter(QObject* watched, QEvent* event) {
                     nextFocus = normal; // 备选焦点切换为下一个非最小化窗口 after AltUp
             }
             notifyForegroundChanged(nextFocus, Inner);
-            showLabelForItem(item, Util::getWindowTitle(nextFocus));
+            // Hide Lable.
+            // showLabelForItem(item, Util::getWindowTitle(nextFocus));
             qDebug() << "Wheel" << isRollUp << Util::getWindowTitle(nextFocus) << hwnd;
 
             return true; // stop propagation

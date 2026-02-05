@@ -45,7 +45,7 @@ public:
         QFile file(settings.fileName());
         if (!file.exists()) { // ensure exists
             qDebug() << "#Creating config file" << settings.fileName();
-            if(file.open(QIODevice::WriteOnly)){
+            if(!file.open(QIODevice::WriteOnly)){
                 qWarning() << "#Failed to create config file" << settings.fileName();
             }else{
                 file.close();
