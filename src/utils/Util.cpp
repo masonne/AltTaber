@@ -252,7 +252,9 @@ namespace Util {
     /// filter HWND by some rules
     /// @param skipVisibleCheck skip IsWindowVisible check<br>
     /// 在窗口创建过程中，会触发 EVENT_SYSTEM_FOREGROUND，但是这瞬间 IsWindowVisible 为false
-    bool isWindowAcceptable(HWND hwnd, bool skipVisibleCheck) {
+    /// @param skipMinimized skip minimized windows (for Alt+Tab)<br>
+    /// 在Alt+Tab场景下，提前过滤最小化窗口可以避免对其执行耗时的getWindowProcessPath操作
+    bool isWindowAcceptable(HWND hwnd, bool skipVisibleCheck, bool skipMinimized) {
         static const QStringList BlackList_ClassName = {
             "Progman",
             "Windows.UI.Core.CoreWindow", // 过滤UWP Core，从Frame入手
@@ -273,6 +275,7 @@ namespace Util {
 
         if ((skipVisibleCheck || IsWindowVisible(hwnd))
             && !isWindowCloaked(hwnd)
+            && (!skipMinimized || !IsIconic(hwnd)) // 早期过滤最小化窗口，避免后续耗时操作
             // 窗口显示在任务栏的基本规则：https://devblogs.microsoft.com/oldnewthing/20031229-00/?p=41283
             && (!GetWindow(hwnd, GW_OWNER) || exStyle & WS_EX_APPWINDOW) // OmApSvcBroker, QQ主面板（意料之外）; 保留：系统属性（Path）
             && (exStyle & WS_EX_TOOLWINDOW) == 0 // 非工具窗口，但其实有些工具窗口没有这个这个属性
@@ -289,18 +292,24 @@ namespace Util {
         return false;
     }
 
+    struct EnumWindowsContext {
+        QList<HWND>* windowList;
+        bool includeMinimized;
+    };
+
     BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-        if (isWindowAcceptable(hwnd)) {
-            auto* windowList = reinterpret_cast<QList<HWND>*>(lParam);
-            windowList->append(hwnd);
+        auto* ctx = reinterpret_cast<EnumWindowsContext*>(lParam);
+        if (isWindowAcceptable(hwnd, false, !ctx->includeMinimized)) {
+            ctx->windowList->append(hwnd);
         }
         return TRUE;
     }
 
-    QList<HWND> enumWindows() {
+    QList<HWND> enumWindows(bool includeMinimized) {
         QList<HWND> list;
+        EnumWindowsContext ctx{&list, includeMinimized};
         // only enum top-level windows
-        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&list));
+        EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&ctx));
         return list;
     }
 
@@ -317,12 +326,12 @@ namespace Util {
     }
 
     // about 2ms
-    QList<HWND> listValidWindows() {
-        qDebug() << "#List Valid Windows";
+    QList<HWND> listValidWindows(bool includeMinimized) {
+        qDebug() << "#List Valid Windows" << (includeMinimized ? "(with minimized)" : "(skip minimized)");
         static const bool isUserAdmin = IsUserAnAdmin(); // 和 isProcessElevated(GetCurrentProcess()) 好像没区别？
         using namespace AppUtil;
         QList<HWND> list;
-        const auto winList = Util::enumWindows();
+        const auto winList = Util::enumWindows(includeMinimized);
         for (auto hwnd: winList) {
             if (!hwnd) continue;
             // 忽略权限高于自身的窗口

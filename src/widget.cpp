@@ -31,7 +31,7 @@ Widget::Widget(QWidget* parent) : QWidget(parent), ui(new Ui::Widget) {
     Util::setWindowRoundCorner(this->hWnd()); // 设置窗口圆角
     setWindowBlur(hWnd()); // 设置窗口模糊, 必须配合Qt::WA_TranslucentBackground
 
-    setupLabelFont();
+    // setupLabelFont();
 
     lw->setViewMode(QListView::IconMode);
     lw->setMovement(QListView::Static);
@@ -240,10 +240,10 @@ void Widget::notifyForegroundChanged(HWND hwnd, ForegroundChangeSource source) {
 /// collect, filter, sort Windows for presentation
 QList<WindowGroup> Widget::prepareWindowGroupList() {
     QMap<QString, WindowGroup> winGroupMap;
-    const auto list = Util::listValidWindows();
+    const auto list = Util::listValidWindows(false); // false = 不包含最小化窗口，提前过滤以优化性能
     for (auto hwnd: list) {
         if (hwnd == this->hWnd()) continue; // skip self
-        if (IsIconic(hwnd)) continue; // skip minimized windows for Alt+Tab
+        // IsIconic 检查已移至底层 isWindowAcceptable() 中，避免重复调用 getWindowProcessPath()
         auto path = Util::getWindowProcessPath(hwnd);
         if (path.isEmpty()) continue; // TODO 可能需要管理员权限
         auto& winGroup = winGroupMap[path];

@@ -17,10 +17,10 @@ namespace Util {
     bool isTopMost(HWND hwnd);
     void switchToWindow(HWND hwnd, bool force = false);
     void bringWindowToTop(HWND hwnd, HWND hWndInsertAfter = HWND_TOPMOST);
-    bool isWindowAcceptable(HWND hwnd, bool skipVisibleCheck = false);
-    QList<HWND> enumWindows();
+    bool isWindowAcceptable(HWND hwnd, bool skipVisibleCheck = false, bool skipMinimized = false);
+    QList<HWND> enumWindows(bool includeMinimized = true);
     QList<HWND> enumChildWindows(HWND hwnd);
-    QList<HWND> listValidWindows();
+    QList<HWND> listValidWindows(bool includeMinimized = true);
     QList<HWND> listValidWindows(const QString& exePath);
     QList<HWND> findTopWindows(const QString& className, const QString& title = QString());
     QIcon getJumboIcon(const QString& filePath);
