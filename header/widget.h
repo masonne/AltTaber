@@ -93,6 +93,7 @@ private:
     /// exePath -> (HWND, time)
     QHash<QString, QHash<HWND, QDateTime>> winActiveOrder;
     QList<HWND> groupWindowOrder; // for Alt+` 同组窗口切换
+    bool canceledByEsc = false; // 标记用户是否按了 ESC 取消切换
 };
 
 

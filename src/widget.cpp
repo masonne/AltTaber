@@ -126,6 +126,14 @@ void Widget::keyPressEvent(QKeyEvent* event) {
             lw->setCurrentRow(0);
     } else if (VimArrows.contains(key)) { // map [K J H L] to [↑ ↓ ← →]
         QApplication::postEvent(lw, new QKeyEvent(QEvent::KeyPress, VimArrows.value(key), modifiers));
+    } else if (key == Qt::Key_Escape) { // ESC 键取消切换
+        if (this->isVisible()) {
+            qDebug() << "ESC pressed, cancel switch";
+            canceledByEsc = true;
+            hide();
+            event->accept(); // 消费事件，防止传递
+            return;
+        }
     }
     QWidget::keyPressEvent(event);
 }
@@ -188,6 +196,15 @@ void Widget::setupLabelFont() {
 void Widget::keyReleaseEvent(QKeyEvent* event) {
     if (event->key() == Qt::Key_Alt) {
         groupWindowOrder.clear(); // for Alt + `
+        
+        // 如果用户按了 ESC 取消，就不执行切换
+        if (canceledByEsc) {
+            qDebug() << "Alt released after ESC, skip switch";
+            canceledByEsc = false; // 重置标志
+            event->accept(); // 消费事件，防止激活菜单栏
+            return;
+        }
+        
         if (this->isVisible()) {
             // active selected window
             if (auto item = lw->currentItem()) {

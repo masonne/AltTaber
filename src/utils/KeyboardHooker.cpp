@@ -5,6 +5,9 @@
 #include "utils/Util.h"
 #include "widget.h"
 
+// 静态标志，记录用户是否按了 ESC 取消切换
+static bool g_canceledByEsc = false;
+
 LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     using Hooker = KeyboardHooker;
     if (nCode == HC_ACTION) {
@@ -32,6 +35,13 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                         QApplication::postEvent(Hooker::receiver, tabDownEvent); // async
                     }
                     return 1; // 阻止事件传递
+                } else if (pKeyBoard->vkCode == VK_ESCAPE) { // ESC 键取消切换
+                    qDebug() << "Alt+ESC detected, set cancel flag";
+                    g_canceledByEsc = true; // 设置取消标志
+                    // 转发 ESC 给 Widget，让它处理取消逻辑
+                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::AltModifier);
+                    QApplication::postEvent(Hooker::receiver, event);
+                    return 1; // 阻止事件传递，防止传给其他窗口
                 } else if (pKeyBoard->vkCode == VK_OEM_3) { // ~`
                     qDebug() << "Alt+` detected!";
                     auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
@@ -43,6 +53,16 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         } else if (wParam == WM_KEYUP) { // Amazing, Alt Down is `WM_SYSKEYDOWN`, but release is `WM_KEYUP`
             auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
             if (pKeyBoard->vkCode == VK_LMENU && Hooker::receiver) {
+                // 如果用户之前按了 ESC 取消，拦截 Alt 释放事件，防止激活菜单栏
+                if (g_canceledByEsc) {
+                    qDebug() << "Alt released after ESC, block it to prevent menu activation";
+                    g_canceledByEsc = false; // 重置标志
+                    // 仍然通知 Widget，让它清理状态
+                    auto event = new QKeyEvent(QEvent::KeyRelease, Qt::Key_Alt, Qt::NoModifier);
+                    QApplication::postEvent(Hooker::receiver, event);
+                    return 1; // ✅ 拦截 Alt 释放，防止传递给底层窗口激活菜单栏
+                }
+                
                 // BUG: Alt + 方向键 长按，过一秒会触发Alt release，而Alt + 其他键则不会，可能是Windows保护机制或键盘问题？
                 qDebug() << "Alt released!";
                 auto event = new QKeyEvent(QEvent::KeyRelease, Qt::Key_Alt, Qt::NoModifier);
