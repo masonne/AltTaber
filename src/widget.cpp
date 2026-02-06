@@ -450,22 +450,41 @@ bool Widget::eventFilter(QObject* watched, QEvent* event) {
                         // 右键点击：最小化窗口
                         ShowWindow(hwnd, SW_MINIMIZE);
                         
-                        // 检查该应用组是否还有其他未最小化的窗口
+                        // 重新获取该应用的所有有效且未最小化的窗口（实时检查）
+                        auto validWindows = Util::listValidWindows(false); // false = 不包含最小化窗口
                         bool hasOtherWindows = false;
-                        for (const auto& winInfo : windowGroup.windows) {
-                            if (winInfo.hwnd != hwnd && !IsIconic(winInfo.hwnd)) {
+                        for (auto validHwnd : validWindows) {
+                            auto path = Util::getWindowProcessPath(validHwnd);
+                            if (path == windowGroup.exePath) {
                                 hasOtherWindows = true;
                                 break;
                             }
                         }
                         
-                        // 如果没有其他窗口了，从列表中移除该应用组
+                        // 如果没有其他有效窗口了，从列表中移除该应用组
                         if (!hasOtherWindows) {
                             delete lw->takeItem(lw->row(item));
                             
                             // 如果列表为空，隐藏切换器
                             if (lw->count() == 0) {
                                 hide();
+                            } else {
+                                // 重新计算并调整窗口宽度
+                                if (auto firstItem = lw->item(0)) {
+                                    auto firstRect = lw->visualItemRect(firstItem);
+                                    auto newWidth = lw->gridSize().width() * lw->count() + (firstRect.x() - lw->frameWidth());
+                                    lw->setFixedWidth(newWidth);
+                                    
+                                    // 重新调整整个窗口的大小和位置（保持居中）
+                                    auto lwRect = lw->rect();
+                                    auto thisRect = lwRect.marginsAdded(ListWidgetMargin);
+                                    auto currentCenter = this->geometry().center();
+                                    thisRect.moveCenter(currentCenter);
+                                    this->setGeometry(thisRect);
+                                    
+                                    lwRect.moveCenter(this->rect().center());
+                                    lw->move(lwRect.topLeft());
+                                }
                             }
                         }
                         return true;
