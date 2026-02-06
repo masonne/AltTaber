@@ -138,6 +138,31 @@ void Widget::keyPressEvent(QKeyEvent* event) {
             event->accept(); // 消费事件，防止传递
             return;
         }
+    } else if (key == Qt::Key_Control) { // Ctrl 键显示最小化窗口
+        if (this->isVisible() && !showMinimizedWindows) {
+            qDebug() << "Ctrl pressed, show minimized windows";
+            showMinimizedWindows = true;
+            // 保存当前选中项的 exePath
+            QString currentExePath;
+            if (auto item = lw->currentItem()) {
+                currentExePath = item->data(Qt::UserRole).value<WindowGroup>().exePath;
+            }
+            // 重新构建列表
+            prepareListWidget();
+            // 尝试恢复之前的选中项
+            if (!currentExePath.isEmpty()) {
+                for (int i = 0; i < lw->count(); ++i) {
+                    if (auto item = lw->item(i)) {
+                        if (item->data(Qt::UserRole).value<WindowGroup>().exePath == currentExePath) {
+                            lw->setCurrentRow(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            event->accept();
+            return;
+        }
     }
     QWidget::keyPressEvent(event);
 }
@@ -198,7 +223,32 @@ void Widget::setupLabelFont() {
 }
 
 void Widget::keyReleaseEvent(QKeyEvent* event) {
-    if (event->key() == Qt::Key_Alt) {
+    if (event->key() == Qt::Key_Control) { // Ctrl 键释放，隐藏最小化窗口
+        if (this->isVisible() && showMinimizedWindows) {
+            qDebug() << "Ctrl released, hide minimized windows";
+            showMinimizedWindows = false;
+            // 保存当前选中项的 exePath
+            QString currentExePath;
+            if (auto item = lw->currentItem()) {
+                currentExePath = item->data(Qt::UserRole).value<WindowGroup>().exePath;
+            }
+            // 重新构建列表
+            prepareListWidget();
+            // 尝试恢复之前的选中项
+            if (!currentExePath.isEmpty()) {
+                for (int i = 0; i < lw->count(); ++i) {
+                    if (auto item = lw->item(i)) {
+                        if (item->data(Qt::UserRole).value<WindowGroup>().exePath == currentExePath) {
+                            lw->setCurrentRow(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            event->accept();
+            return;
+        }
+    } else if (event->key() == Qt::Key_Alt) {
         groupWindowOrder.clear(); // for Alt + `
         
         // 如果用户按了 ESC 取消，就不执行切换
@@ -241,6 +291,12 @@ void Widget::paintEvent(QPaintEvent*) { //不绘制会导致鼠标穿透背景
     painter.drawRect(rect());
 }
 
+void Widget::hideEvent(QHideEvent* event) {
+    // 窗口隐藏时重置标志
+    showMinimizedWindows = false;
+    QWidget::hideEvent(event);
+}
+
 /// 通知前台窗口变化
 /// @param hwnd 前台窗口句柄
 /// @param source 通知来源, for debug, @b Optional
@@ -261,7 +317,7 @@ void Widget::notifyForegroundChanged(HWND hwnd, ForegroundChangeSource source) {
 /// collect, filter, sort Windows for presentation
 QList<WindowGroup> Widget::prepareWindowGroupList() {
     QMap<QString, WindowGroup> winGroupMap;
-    const auto list = Util::listValidWindows(false); // false = 不包含最小化窗口，提前过滤以优化性能
+    const auto list = Util::listValidWindows(showMinimizedWindows); // 根据 Ctrl 键状态决定是否包含最小化窗口
     for (auto hwnd: list) {
         if (hwnd == this->hWnd()) continue; // skip self
         // IsIconic 检查已移至底层 isWindowAcceptable() 中，避免重复调用 getWindowProcessPath()
@@ -465,7 +521,7 @@ bool Widget::eventFilter(QObject* watched, QEvent* event) {
                         if (!hasOtherWindows) {
                             delete lw->takeItem(lw->row(item));
                             
-                            // 如果列表为空，隐藏切换器
+                            // 如果列表为空，隐藏切换器 
                             if (lw->count() == 0) {
                                 hide();
                             } else {

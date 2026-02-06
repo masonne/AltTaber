@@ -50,6 +50,7 @@ protected:
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
 
 public:
     enum ForegroundChangeSource {
@@ -94,6 +95,7 @@ private:
     QHash<QString, QHash<HWND, QDateTime>> winActiveOrder;
     QList<HWND> groupWindowOrder; // for Alt+` 同组窗口切换
     bool canceledByEsc = false; // 标记用户是否按了 ESC 取消切换
+    bool showMinimizedWindows = false; // 标记是否显示最小化窗口（Ctrl 键）
 };
 
 

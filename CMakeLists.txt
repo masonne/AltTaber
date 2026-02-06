@@ -10,7 +10,7 @@ list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目�
 
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 8)
+set(VERSION_MINOR 9)
 set(VERSION_PATCH 0)
 
 set(COMPANY_NAME "MrBeanCpp")
@@ -104,3 +104,4 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "/utf-8")
 endif ()
+
