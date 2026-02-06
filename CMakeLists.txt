@@ -11,7 +11,7 @@ list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目�
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 9)
-set(VERSION_PATCH 0)
+set(VERSION_PATCH 1)
 
 set(COMPANY_NAME "MrBeanCpp")
 set(FILE_DESCRIPTION "AltTaber - Window Switcher")
@@ -92,7 +92,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${Qt6Gui_PRIVATE_INCLUDE_DIRS
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "AltTaber") # 设置输出文件名
 if (CMAKE_BUILD_TYPE MATCHES "Release")
-    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE false) # 设置为窗口应用程序, 无控制台，同时会导致Clion无法捕获输出
+    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE true) # 设置为窗口应用程序, 无控制台，同时会导致Clion无法捕获输出
 endif ()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -105,3 +105,18 @@ if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "/utf-8")
 endif ()
 
+# 添加打包目标
+add_custom_target(deploy
+        COMMAND ${CMAKE_COMMAND} -E echo "Creating Release directory..."
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/AltTaber"
+        COMMAND ${CMAKE_COMMAND} -E echo "Copying executable..."
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${PROJECT_NAME}>" "${CMAKE_BINARY_DIR}/AltTaber/"
+        COMMAND ${CMAKE_COMMAND} -E echo "Running windeployqt..."
+        COMMAND windeployqt --no-translations --no-system-d3d-compiler --no-opengl-sw "${CMAKE_BINARY_DIR}/AltTaber/AltTaber.exe"
+        COMMAND ${CMAKE_COMMAND} -E echo "Creating archive..."
+        COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/AltTaber-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-win64.zip" --format=zip "${CMAKE_BINARY_DIR}/AltTaber"
+        COMMAND ${CMAKE_COMMAND} -E echo "Release created: AltTaber-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-win64.zip"
+        DEPENDS ${PROJECT_NAME}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Packaging AltTaber with Qt dependencies"
+)
