@@ -11,10 +11,13 @@
 #include <QDateTime>
 #include "utils/QtWin.h"
 #include <QWheelEvent>
+#include <QMouseEvent>
 #include <QTimer>
 #include <QMetaEnum>
+#include <qlogging.h>
 #include "utils/SystemTray.h"
 #include "utils/ConfigManager.h"
+#include "utils/KeyboardHooker.h"
 
 Widget::Widget(QWidget* parent) : QWidget(parent), ui(new Ui::Widget) {
     ui->setupUi(this);
@@ -56,6 +59,7 @@ Widget::Widget(QWidget* parent) : QWidget(parent), ui(new Ui::Widget) {
     // will not take ownership of delegate
     lw->setItemDelegate(new IconOnlyDelegate(lw));
     lw->installEventFilter(this);
+    lw->viewport()->installEventFilter(this); // 关键：需要在 viewport 上安装事件过滤器
 
     // Hide Label, No need to send.
     // connect(lw, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* cur, QListWidgetItem*) {
@@ -421,7 +425,55 @@ QList<HWND> Widget::buildGroupWindowOrder(const QString& exePath) {
 }
 
 bool Widget::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == lw && event->type() == QEvent::Wheel) {
+    // 处理鼠标点击事件
+    if ((watched == lw || watched == lw->viewport()) && event->type() == QEvent::MouseButtonRelease) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        auto cursorPos = mouseEvent->position().toPoint();
+        
+        if (auto item = lw->itemAt(cursorPos)) {
+            auto windowGroup = item->data(Qt::UserRole).value<WindowGroup>();
+            if (!windowGroup.windows.isEmpty()) {
+                // 获取该窗口组中最后活跃的窗口
+                auto [hwnd, _] = getLastActiveGroupWindow(windowGroup.exePath);
+                if (!hwnd && !windowGroup.windows.isEmpty()) {
+                    hwnd = windowGroup.windows.first().hwnd; // 降级方案
+                }
+                
+                if (hwnd) {
+                    if (mouseEvent->button() == Qt::LeftButton) {
+                        // 左键点击：切换到该窗口
+                        KeyboardHooker::setSwitchedByMouse(true); // 设置鼠标切换标志
+                        Util::switchToWindow(hwnd);
+                        hide();
+                        return true;
+                    } else if (mouseEvent->button() == Qt::RightButton) {
+                        // 右键点击：最小化窗口
+                        ShowWindow(hwnd, SW_MINIMIZE);
+                        
+                        // 检查该应用组是否还有其他未最小化的窗口
+                        bool hasOtherWindows = false;
+                        for (const auto& winInfo : windowGroup.windows) {
+                            if (winInfo.hwnd != hwnd && !IsIconic(winInfo.hwnd)) {
+                                hasOtherWindows = true;
+                                break;
+                            }
+                        }
+                        
+                        // 如果没有其他窗口了，从列表中移除该应用组
+                        if (!hasOtherWindows) {
+                            delete lw->takeItem(lw->row(item));
+                            
+                            // 如果列表为空，隐藏切换器
+                            if (lw->count() == 0) {
+                                hide();
+                            }
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+    } else if (watched == lw && event->type() == QEvent::Wheel) {
         auto* wheelEvent = static_cast<QWheelEvent*>(event);
         auto cursorPos = wheelEvent->position().toPoint();
         if (auto item = lw->itemAt(cursorPos)) {

@@ -7,6 +7,8 @@
 
 // 静态标志，记录用户是否按了 ESC 取消切换
 static bool g_canceledByEsc = false;
+// 静态标志，记录用户是否通过鼠标点击切换了窗口
+static bool g_switchedByMouse = false;
 
 LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     using Hooker = KeyboardHooker;
@@ -53,10 +55,11 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         } else if (wParam == WM_KEYUP) { // Amazing, Alt Down is `WM_SYSKEYDOWN`, but release is `WM_KEYUP`
             auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
             if (pKeyBoard->vkCode == VK_LMENU && Hooker::receiver) {
-                // 如果用户之前按了 ESC 取消，拦截 Alt 释放事件，防止激活菜单栏
-                if (g_canceledByEsc) {
-                    qDebug() << "Alt released after ESC, block it to prevent menu activation";
+                // 如果用户之前按了 ESC 取消或通过鼠标切换，拦截 Alt 释放事件，防止激活菜单栏
+                if (g_canceledByEsc || g_switchedByMouse) {
+                    qDebug() << "Alt released after ESC/mouse click, block it to prevent menu activation";
                     g_canceledByEsc = false; // 重置标志
+                    g_switchedByMouse = false; // 重置标志
                     // 仍然通知 Widget，让它清理状态
                     auto event = new QKeyEvent(QEvent::KeyRelease, Qt::Key_Alt, Qt::NoModifier);
                     QApplication::postEvent(Hooker::receiver, event);
@@ -72,6 +75,10 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         }
     }
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
+
+void KeyboardHooker::setSwitchedByMouse(bool value) {
+    g_switchedByMouse = value;
 }
 
 KeyboardHooker::KeyboardHooker(QWidget* _receiver) {

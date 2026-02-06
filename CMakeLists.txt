@@ -10,7 +10,7 @@ list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目�
 
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 6)
+set(VERSION_MINOR 7)
 set(VERSION_PATCH 0)
 
 set(COMPANY_NAME "MrBeanCpp")
@@ -92,7 +92,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${Qt6Gui_PRIVATE_INCLUDE_DIRS
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "AltTaber") # 设置输出文件名
 if (CMAKE_BUILD_TYPE MATCHES "Release")
-    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE true) # 设置为窗口应用程序, 无控制台，同时会导致Clion无法捕获输出
+    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE false) # 设置为窗口应用程序, 无控制台，同时会导致Clion无法捕获输出
 endif ()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE

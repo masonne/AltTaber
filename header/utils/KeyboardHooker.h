@@ -9,6 +9,7 @@ public:
     explicit KeyboardHooker(QWidget* _receiver);
     ~KeyboardHooker(); // RAII
     inline static QWidget* receiver = nullptr;
+    static void setSwitchedByMouse(bool value);
 
 private:
     HHOOK h_keyboard = nullptr;
