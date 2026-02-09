@@ -11,7 +11,7 @@ list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目�
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 9)
-set(VERSION_PATCH 1)
+set(VERSION_PATCH 2)
 
 set(COMPANY_NAME "MrBeanCpp")
 set(FILE_DESCRIPTION "AltTaber - Window Switcher")

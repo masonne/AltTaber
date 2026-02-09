@@ -9,12 +9,18 @@
 static bool g_canceledByEsc = false;
 // 静态标志，记录用户是否通过鼠标点击切换了窗口
 static bool g_switchedByMouse = false;
+// 用于标记我们自己注入的键盘事件
+static constexpr ULONG_PTR INJECTED_EVENT_MARKER = 0x4B48; // "KH" in hex
 
 LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     using Hooker = KeyboardHooker;
     if (nCode == HC_ACTION) {
+        auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
+        // 忽略我们自己注入的事件，避免死循环
+        if (pKeyBoard->dwExtraInfo == INJECTED_EVENT_MARKER) {
+            return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        }
         if (wParam == WM_SYSKEYDOWN || wParam == WM_KEYDOWN) { // Alt & [Alt按下时的Tab]属于SysKey
-            auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
             // inner: `GetAsyncKeyState`, doc warns this usage, but it seems to work fine(?)
             // If it's broken, maybe we can record Modifier manually in every callback
             /* Note from Docs:
@@ -53,17 +59,40 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 }
             }
         } else if (wParam == WM_KEYUP) { // Amazing, Alt Down is `WM_SYSKEYDOWN`, but release is `WM_KEYUP`
-            auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
             if (pKeyBoard->vkCode == VK_LMENU && Hooker::receiver) {
                 // 如果用户之前按了 ESC 取消或通过鼠标切换，拦截 Alt 释放事件，防止激活菜单栏
                 if (g_canceledByEsc || g_switchedByMouse) {
                     qDebug() << "Alt released after ESC/mouse click, block it to prevent menu activation";
                     g_canceledByEsc = false; // 重置标志
                     g_switchedByMouse = false; // 重置标志
+                    
+                    // 先注入 Ctrl 按下/释放来清除 Alt 菜单状态，然后注入 Alt 释放更新键盘状态
+                    INPUT inputs[3] = {};
+                    
+                    // Ctrl 按下
+                    inputs[0].type = INPUT_KEYBOARD;
+                    inputs[0].ki.wVk = VK_CONTROL;
+                    inputs[0].ki.dwFlags = 0;
+                    inputs[0].ki.dwExtraInfo = INJECTED_EVENT_MARKER;
+                    
+                    // Ctrl 释放
+                    inputs[1].type = INPUT_KEYBOARD;
+                    inputs[1].ki.wVk = VK_CONTROL;
+                    inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+                    inputs[1].ki.dwExtraInfo = INJECTED_EVENT_MARKER;
+                    
+                    // Alt 释放
+                    inputs[2].type = INPUT_KEYBOARD;
+                    inputs[2].ki.wVk = VK_MENU;
+                    inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+                    inputs[2].ki.dwExtraInfo = INJECTED_EVENT_MARKER;
+                    
+                    SendInput(3, inputs, sizeof(INPUT));
+                    
                     // 仍然通知 Widget，让它清理状态
                     auto event = new QKeyEvent(QEvent::KeyRelease, Qt::Key_Alt, Qt::NoModifier);
                     QApplication::postEvent(Hooker::receiver, event);
-                    return 1; // ✅ 拦截 Alt 释放，防止传递给底层窗口激活菜单栏
+                    return 1; // ✅ 拦截原始 Alt 释放，防止传递给底层窗口激活菜单栏
                 }
                 
                 // BUG: Alt + 方向键 长按，过一秒会触发Alt release，而Alt + 其他键则不会，可能是Windows保护机制或键盘问题？
